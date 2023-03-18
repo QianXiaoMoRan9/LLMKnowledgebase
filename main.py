@@ -1,6 +1,9 @@
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores.faiss import FAISS
+from langchain.vectorstores import Qdrant
+from langchain import OpenAI, VectorDBQA
+
 import pypdf
 import tiktoken
 enc = tiktoken.get_encoding("gpt2")
@@ -132,24 +135,9 @@ print(len(docs))
 print(docs[0])
 
 # make it into a gpu index
-# gpu_index_flat = faiss.index_cpu_to_gpu(res, 0, index_flat)
+doc_store = Qdrant.from_texts(docs, hf_embedding, url="http://localhost:6333")
+llm = OpenAI(openai_api_key="REPLACE_WITH_API_KEY")
+qa = VectorDBQA.from_chain_type(llm=llm, chain_type="map_reduce", vectorstore=doc_store)
 
-# FAISS.from_texts(texts=docs, embedding=HuggingFaceEmbeddings, metadatas=metadatas)
-# doc_result = EMBEDDING.embed_documents(docs)
-from sentence_transformers import SentenceTransformer
-import time
-
-
-def benchmark_model(device="cuda"):
-    model_name = 'sentence-transformers/all-mpnet-base-v2'
-    model = SentenceTransformer(model_name, device=device)
-    t0 = time.time()
-    texts = list(map(lambda x: x.replace("\n", " "), docs))
-    embeddings = model.encode(texts)
-
-    t1 = time.time()
-    print(f"emnbedding took {t1 - t0} seconds on {device}")
-    return embeddings
-
-benchmark_model('cpu')
-
+result = qa.run("What is Visual saliency patterns?")
+print(result)
